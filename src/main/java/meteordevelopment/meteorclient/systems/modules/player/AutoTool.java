@@ -24,6 +24,7 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.item.ShearsItem;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.ItemTags;
@@ -154,6 +155,7 @@ public class AutoTool extends Module {
 
         // Check if we should switch to a better tool
         ItemStack currentStack = mc.player.getMainHandStack();
+        boolean requiresDiamondPickaxe = blockState.getBlock() == Blocks.DEEPSLATE_EMERALD_ORE;
 
         double bestScore = -1;
         bestSlot = -1;
@@ -173,8 +175,14 @@ public class AutoTool extends Module {
             }
         }
 
+        if (requiresDiamondPickaxe && !currentStack.isOf(Items.DIAMOND_PICKAXE) && bestSlot == -1) {
+            mc.options.attackKey.setPressed(false);
+            event.cancel();
+            return;
+        }
+
         if ((bestSlot != -1 && (bestScore > getScore(currentStack, blockState, silkTouchForEnderChest.get(), fortuneForOresCrops.get(), prefer.get(), itemStack -> !shouldStopUsing(itemStack))) || shouldStopUsing(currentStack) || !isTool(currentStack))) {
-            ticks = switchDelay.get();
+            ticks = requiresDiamondPickaxe && !currentStack.isOf(Items.DIAMOND_PICKAXE) ? 0 : switchDelay.get();
 
             if (ticks == 0) InvUtils.swap(bestSlot, true);
             else shouldSwitch = true;
@@ -195,6 +203,7 @@ public class AutoTool extends Module {
 
     public static double getScore(ItemStack itemStack, BlockState state, boolean silkTouchEnderChest, boolean fortuneOre, EnchantPreference enchantPreference, Predicate<ItemStack> good) {
         if (!good.test(itemStack) || !isTool(itemStack)) return -1;
+        if (state.getBlock() == Blocks.DEEPSLATE_EMERALD_ORE && !itemStack.isOf(Items.DIAMOND_PICKAXE)) return -1;
         if (!itemStack.isSuitableFor(state) &&
             !(itemStack.isIn(ItemTags.SWORDS) && (state.getBlock() instanceof BambooBlock || state.getBlock() instanceof BambooShootBlock)) &&
             !(itemStack.getItem() instanceof ShearsItem && state.getBlock() instanceof LeavesBlock || state.isIn(BlockTags.WOOL)))
